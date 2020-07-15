@@ -1,0 +1,38 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import warnings
+import seaborn as sns
+warnings.filterwarnings('ignore')
+
+data = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/Book_data.csv")
+
+print(data.head())
+
+print(data.describe())
+
+#Calculating Pearson Corealtion Coefficient
+ratings = pd.DataFrame(data.groupby('Name')['Rating'].mean())
+print(ratings.head())
+
+ratings['CountsOfReview'] = data.groupby('Name')['Rating'].count()
+print(ratings.head())
+
+ratings = ratings.drop(columns=['CountsOfReview'])
+print(ratings.head())
+
+#multiplied ratings with the number of ratings a book got
+data['new_ratings']= data['Rating']*data['CountsOfReview']
+print(data.head())
+
+Newratings = pd.DataFrame(data.groupby('Name')['new_ratings'].mean())
+print(Newratings.head())
+
+plt.hist(ratings['Rating'], bins = 50)
+plt.show()
+
+sns.jointplot(x='Rating', y='CountsOfReview', data=data)
+plt.show()
+
+book_matrix = pd.pivot_table(data,'Id','Name', 'Rating')
+print(book_matrix.head())
