@@ -1,38 +1,89 @@
+# Importing Important Libraries
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import warnings
-import seaborn as sns
-warnings.filterwarnings('ignore')
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
+# Loading the dataset
+data = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/movies_metadata.csv", low_memory=False)
 
-data = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/Book_data.csv")
-
+#Printig top rows of data
 print(data.head())
 
-print(data.describe())
+#Weighted Rating
+#v is the number of votes for the movie,
+#m is the minimum votes required to be listed in the chart
+#R is the average rating of the movie
+#C is the mean vote across the whole report
 
-#Calculating Pearson Corealtion Coefficient
-ratings = pd.DataFrame(data.groupby('Name')['Rating'].mean())
-print(ratings.head())
+# Mean of average vote
+C = data['vote_average'].mean()
+print('The mean vote across the whole report: ', C)
 
-ratings['CountsOfReview'] = data.groupby('Name')['Rating'].count()
-print(ratings.head())
+# Calculate m
+m = data['vote_count'].quantile(0.90)
+print('The minimum votes required to be listed in the chart: ',m)
 
-ratings = ratings.drop(columns=['CountsOfReview'])
-print(ratings.head())
+# Creating new dataset with qualified movies
+movies = data.copy().loc[data['vote_count'] >= m]
+print(movies.shape)
+print(data.shape)
 
-#multiplied ratings with the number of ratings a book got
-data['new_ratings']= data['Rating']*data['CountsOfReview']
-print(data.head())
+#Weighted Rating Fumction
+def w_rating(x, m=m, C=C):
+    v = x['vote_count']
+    R = x['vote_average']
+    return (v/(v+m) * R) + (m/(m+v) * C)
 
-Newratings = pd.DataFrame(data.groupby('Name')['new_ratings'].mean())
-print(Newratings.head())
+# New column defing the weighted rating of qyalified movies
+movies['WR'] = movies.apply(w_rating, axis=1)
+print(movies.head())
 
-plt.hist(ratings['Rating'], bins = 50)
-plt.show()
+#Sorting the movies according to WR
+movies = movies.sort_values('WR', ascending=False)
 
-sns.jointplot(x='Rating', y='CountsOfReview', data=data)
-plt.show()
+#Printing the top 15 movies
+print(movies[['title', 'vote_count', 'vote_average', 'WR']].head(15))
 
-book_matrix = pd.pivot_table(data,'Id','Name', 'Rating')
-print(book_matrix.head())
+#Print the overview from data
+print(movies['overview'].head())
+
+#Replacing NaN with an empty string
+movies['overview'] = movies['overview'].fillna('')
+
+#Define a TF-IDF Vectorizer Object
+tfidf = TfidfVectorizer(stop_words='english')
+
+#Constructing the TF-IDF matrix by Fitting and transforming the data
+tfidf_matrix = tfidf.fit_transform(movies['overview'])
+print(tfidf_matrix.shape)
+
+#Cosine Similarity Matrix
+c_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+print(c_sim)
+
+#Constructing a reverse map of indices and movie titles
+indices = pd.Series(movies.index, index=movies['title']).drop_duplicates()
+print(indices[:10])
+
+# Defining function to find most similar movies
+def get_recommendations(title, c_sim=c_sim):
+    # Index of the movie that matches the title
+    idx = indices[title]
+
+    # Pairwsie similarity scores of all movies with that movie
+    sim_scores = list(enumerate(c_sim[idx]))
+
+    # Sort the movies based on the similarity scores
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+    # Get the scores of the 10 most similar movies
+    sim_scores = sim_scores[1:11]
+
+    # Get the movie indices
+    movie_indices = [i[0] for i in sim_scores]
+
+    # Return the top 10 most similar movies
+    return movies['title'].iloc[movie_indices]
+
+#trying if recommendation system works
+print(get_recommendations('The Godfather'))
+
