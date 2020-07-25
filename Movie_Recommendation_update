@@ -1,89 +1,83 @@
-# Importing Important Libraries
+# Libraries
 import pandas as pd
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
-# Loading the dataset
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from ast import literal_eval
+
+# Dataset
 data = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/movies_metadata.csv", low_memory=False)
+credits = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/credits.csv", low_memory=False)
+keywords = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/keywords.csv", low_memory=False)
 
-#Printig top rows of data
-print(data.head())
-
-#Weighted Rating
-#v is the number of votes for the movie,
-#m is the minimum votes required to be listed in the chart
-#R is the average rating of the movie
-#C is the mean vote across the whole report
+#top rows of data
+print('Top Rows of Data: ','\n', data.head())
 
 # Mean of average vote
-C = data['vote_average'].mean()
-print('The mean vote across the whole report: ', C)
+mean_vote = data['vote_average'].mean()
+print('The mean vote across the whole report: ', mean_vote)
 
-# Calculate m
-m = data['vote_count'].quantile(0.90)
-print('The minimum votes required to be listed in the chart: ',m)
+# Minimun vote required
+min_vote = data['vote_count'].quantile(0.90)
+print('The minimum votes required to be listed in the chart: ',min_vote)
 
-# Creating new dataset with qualified movies
-movies = data.copy().loc[data['vote_count'] >= m]
-print(movies.shape)
-print(data.shape)
+# new dataset with qualified movies
+movies = data.copy().loc[data['vote_count'] >= min_vote]
+print('Size of Movies dataset: ','\n',movies.shape)
+print('Size of Original dataset: ','\n',data.shape)
 
 #Weighted Rating Fumction
-def w_rating(x, m=m, C=C):
-    v = x['vote_count']
-    R = x['vote_average']
-    return (v/(v+m) * R) + (m/(m+v) * C)
+def WR_function(x, min_vote=min_vote, mean_vote=mean_vote):
+    vote_count = x['vote_count']
+    vote_avg = x['vote_average']
+    return (vote_count/(vote_count+min_vote) * vote_avg) + (min_vote/(min_vote+vote_count) * mean_vote)
 
-# New column defing the weighted rating of qyalified movies
-movies['WR'] = movies.apply(w_rating, axis=1)
-print(movies.head())
+# New column defing the weighted rating
+movies['WR'] = movies.apply(WR_function, axis=1)
+print('Top Rows of Data: ','\n',movies.head())
 
-#Sorting the movies according to WR
+#Sorting according to WR
 movies = movies.sort_values('WR', ascending=False)
 
-#Printing the top 15 movies
-print(movies[['title', 'vote_count', 'vote_average', 'WR']].head(15))
+#top 15 movies
+print('Top 15 Rows of Data: ','\n',movies[['title', 'vote_count', 'vote_average', 'WR']].head(15))
 
-#Print the overview from data
-print(movies['overview'].head())
+#overview from data
+print('Overview from Data: ','\n',movies['overview'].head())
 
 #Replacing NaN with an empty string
 movies['overview'] = movies['overview'].fillna('')
 
-#Define a TF-IDF Vectorizer Object
+#term frequency–inverse document frequency vectorizer object
 tfidf = TfidfVectorizer(stop_words='english')
 
-#Constructing the TF-IDF matrix by Fitting and transforming the data
-tfidf_matrix = tfidf.fit_transform(movies['overview'])
-print(tfidf_matrix.shape)
+#term frequency–inverse document frequency matrix
+t_matrix = tfidf.fit_transform(movies['overview'])
+print('Term Frequency–Inverse Document Frequency Matrix: ','\n',t_matrix)
 
-#Cosine Similarity Matrix
-c_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
-print(c_sim)
+#cosine similarity matrix
+c_matrix = linear_kernel(t_matrix, t_matrix)
+print('Cosine Similarity Matrix: ','\n',c_matrix)
 
-#Constructing a reverse map of indices and movie titles
+#reverse map of indices and movie titles
 indices = pd.Series(movies.index, index=movies['title']).drop_duplicates()
-print(indices[:10])
+print('Reverse Map of Indices and Movie Titles: ','\n',indices[:10])
 
-# Defining function to find most similar movies
-def get_recommendations(title, c_sim=c_sim):
-    # Index of the movie that matches the title
-    idx = indices[title]
+# Recommendation function
+def recommendations(title, c_matrix=c_matrix):
+    index = indices[title]
 
-    # Pairwsie similarity scores of all movies with that movie
-    sim_scores = list(enumerate(c_sim[idx]))
+    similarity_scores = list(enumerate(c_matrix[index]))
 
-    # Sort the movies based on the similarity scores
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    similarity_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
 
-    # Get the scores of the 10 most similar movies
-    sim_scores = sim_scores[1:11]
+    similarity_scores = similarity_scores[1:11]
 
-    # Get the movie indices
-    movie_indices = [i[0] for i in sim_scores]
+    movies_title = [i[0] for i in similarity_scores]
 
-    # Return the top 10 most similar movies
-    return movies['title'].iloc[movie_indices]
+    return movies['title'].iloc[movies_title]
 
 #trying if recommendation system works
-print(get_recommendations('The Godfather'))
-
+print('Recommendations based on the movie are: ','\n',recommendations('The Godfather'))
