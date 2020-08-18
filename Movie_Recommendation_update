@@ -9,8 +9,6 @@ from ast import literal_eval
 
 # Dataset
 data = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/movies_metadata.csv", low_memory=False)
-credits = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/credits.csv", low_memory=False)
-keywords = pd.read_csv("C:/Users/Vinay Moond/PycharmProjects/TermProject/keywords.csv", low_memory=False)
 
 #top rows of data
 print('Top Rows of Data: ','\n', data.head())
@@ -81,3 +79,4 @@ def recommendations(title, c_matrix=c_matrix):
 
 #trying if recommendation system works
 print('Recommendations based on the movie are: ','\n',recommendations('The Godfather'))
+
